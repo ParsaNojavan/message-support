@@ -5,8 +5,4 @@ import { SupportService } from './support.service';
 export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
-  @Get()
-  getHello(): string {
-    return this.supportService.getHello();
-  }
 }
