@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import Room from './models/concrete/room';
 import { InjectModel } from '@nestjs/mongoose';
@@ -16,7 +16,7 @@ export class SupportService {
 
     const room = await this.roomModel.findOneAndUpdate(
       { ownerId, visitorId },
-      { $setOnInsert: { ownerId, visitorId } }, 
+      { $setOnInsert: { ownerId, visitorId } },
       { new: true, upsert: true }
     );
 
@@ -47,4 +47,37 @@ export class SupportService {
 
     return message;
   }
+
+  async getRoomMessages(roomId: string, requesterId: string) {
+
+    const room = await this.roomModel.findById(roomId);
+
+    if (!room) throw new NotFoundException('room.not-found')
+
+    if (requesterId !== room.visitorId && requesterId !== room.ownerId)
+      throw new ForbiddenException('room.forbidden')
+
+    const messages = await this.messageModel
+      .find({ roomId: new Types.ObjectId(roomId) })
+      .sort({ createdAt: 1 })
+      .lean()
+      .exec();
+
+    return messages
+  }
+
+  async getAllRooms(page: number = 1, limit: number = 20, ownerId: string) {
+    const skip = (page - 1) * limit;
+
+    const rooms = await this.roomModel
+      .find({ ownerId: ownerId })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    return rooms;
+  }
+
 }
