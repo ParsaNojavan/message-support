@@ -9,18 +9,39 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ApiKeyValidator } from '@app/contracts/utils/api_key/validator/api-key.validator';
-import { UseGuards } from '@nestjs/common';
+import { Inject, OnModuleInit, UseGuards } from '@nestjs/common';
 import { ApiKeyGuard } from '@app/contracts/utils/api_key/guards/api-key.guard';
 import { WsApiKeyGuard } from '@app/contracts/utils/api_key/guards/api-key.ws.guard';
 import { SupportService } from './support.service';
 import { JwtService } from '@nestjs/jwt';
+import Redis from 'ioredis';
 
 @WebSocketGateway({ cors: true })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway implements OnModuleInit, OnGatewayConnection, OnGatewayDisconnect {
 
     constructor(private readonly supportService: SupportService,
         private readonly jwtService: JwtService,
+        @Inject('REDIS_SUB_CLIENT') private readonly redis: Redis,
     ) { }
+
+    async onModuleInit() {
+        await this.redis.subscribe('room:created');
+
+        this.redis.on('message', (channel, message) => {
+            console.log(channel)
+            if (channel === 'room:created') {
+
+                const presenceData = JSON.parse(message);
+
+                this.server.to(`admin_room_${presenceData.ownerId}`).emit('newRoom', {
+                    roomId: presenceData.roomId,
+                    ownerId: presenceData.ownerId,
+                    visitorId: presenceData.visitorId,
+                    updatedAt: presenceData.updatedAt,
+                });
+            }
+        });
+    }
 
     handleDisconnect(client: Socket) {
         console.log(`Client disconnected: ${client.id}`);
