@@ -12,6 +12,11 @@ export default class Room extends Document implements IEntity {
 
 }
 
+export type RoomDocument = Room & Document & {
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export const RoomSchema = SchemaFactory.createForClass(Room);
 
 RoomSchema.index({ ownerId: 1, visitorId: 1 }, { unique: true });

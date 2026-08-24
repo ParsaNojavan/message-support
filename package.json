@@ -31,6 +31,7 @@
     "@nestjs/platform-socket.io": "^11.2.1",
     "@nestjs/websockets": "^11.2.1",
     "bcrypt": "^6.0.0",
+    "ioredis": "^6.0.0",
     "joi": "^18.2.5",
     "mongoose": "^9.9.3",
     "nestjs-i18n": "^10.8.5",
