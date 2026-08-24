@@ -8,6 +8,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import Room, { RoomSchema } from './models/concrete/room';
 import Message, { MessageSchema } from './models/concrete/message';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
@@ -38,6 +39,31 @@ import Message, { MessageSchema } from './models/concrete/message';
     ]),
   ],
   controllers: [SupportController],
-  providers: [SupportService,ChatGateway,WsApiKeyGuard],
+  providers: [SupportService, ChatGateway, WsApiKeyGuard,
+    {
+      provide: 'REDIS_CLIENT',
+      useFactory: (configService: ConfigService) => {
+        return new Redis({
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          username: configService.get<string>('REDIS_USERNAME'),
+          password: configService.get<string>('REDIS_PASSWORD'),
+        });
+      },
+      inject: [ConfigService]
+    },
+    {
+      provide: 'REDIS_SUB_CLIENT',
+      useFactory: (configService: ConfigService) => {
+        return new Redis({
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          username: configService.get<string>('REDIS_USERNAME'),
+          password: configService.get<string>('REDIS_PASSWORD'),
+        });
+      },
+      inject: [ConfigService]
+    }
+  ],
 })
-export class SupportModule {}
+export class SupportModule { }

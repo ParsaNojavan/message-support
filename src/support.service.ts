@@ -1,26 +1,40 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
-import Room from './models/concrete/room';
+import Room, { RoomDocument } from './models/concrete/room';
 import { InjectModel } from '@nestjs/mongoose';
 import Message from './models/concrete/message';
 import { SenderType } from '@app/contracts/models/enums/sender-type';
+import Redis from 'ioredis';
 
 @Injectable()
 export class SupportService {
   constructor(
-    @InjectModel(Room.name) private readonly roomModel: Model<Room>,
+    @InjectModel(Room.name) private readonly roomModel: Model<RoomDocument>,
     @InjectModel(Message.name) private readonly messageModel: Model<Message>,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis
   ) { }
 
   async getOrCreateRoom(ownerId: string, visitorId: string): Promise<Room> {
 
-    const room = await this.roomModel.findOneAndUpdate(
+    const result = await this.roomModel.findOneAndUpdate(
       { ownerId, visitorId },
       { $setOnInsert: { ownerId, visitorId } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, includeResultMetadata: true },
     );
 
-    return room;
+    const room = result.value;
+    const isNew = !result.lastErrorObject?.updatedExisting;
+
+    if (isNew && room) {
+        this.redis.publish('room:created', JSON.stringify({
+          roomId: String(room._id),
+          ownerId: room.ownerId,
+          visitorId: room.visitorId,
+          updatedAt: room.updatedAt,
+        }));
+    }
+
+    return room as Room;
   }
 
   async saveVisitorMessage(ownerId: string, visitorId: string, text: string) {
